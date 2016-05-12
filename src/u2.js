@@ -1,3 +1,28 @@
+/**
+ * @license
+ * Copyright 2016 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+TODO:
+ - Fix handling of Slots that return arrays.
+ - Add support for FOAM1 style dynamic functions?
+ - Property handle insertBefore_ of an element that's already been inserted?
+ - Fix ExpressionSlot firing too many property change events
+*/
+
 foam.CLASS({
   package: 'foam.u2',
   name: 'EID',
@@ -703,9 +728,11 @@ foam.CLASS({
         Value can be either a string, a Value, or an Object.
         If Value is undefined, null or false, the attribute will be removed.
       */
-      var prop = this.model_.getProperty(name);
+      var prop = this.cls_.getAxiomByName(name);
 
-      if ( prop && prop.attribute ) {
+      if ( prop &&
+           foam.core.Property.isInstance(prop) &&
+           prop.attribute ) {
         if ( typeof value === 'string' ) {
           this[name] = prop.fromString(value);
         } else if ( foam.core.Slot.isInstance(value) ) {
@@ -721,7 +748,7 @@ foam.CLASS({
 
         if ( typeof value === 'function' )
           this.dynamicAttr_(name, value);
-        else if ( Value.isInstance(value) )
+        else if ( foam.core.Slot.isInstance(value) )
           this.valueAttr_(name, value);
         else {
           var attr = this.getAttributeNode(name);
@@ -975,16 +1002,18 @@ foam.CLASS({
         } else if ( c.toE ) {
           es.push(c.toE(Y));
         } else if ( typeof c === 'function' ) {
-          es.push((function() {
-            var dyn = Y.E('span');
-            var last = null;
+          throw new Error("Unsupported");
 
-            X.dynamicFn(this, function(e) {
-              e = X.E('span').add(e);
-              if ( last ) dyn.removeChild(last); //last.remove();
-              dyn.add(last = e);
-            });
-          })());
+          // es.push((function() {
+          //   var dyn = Y.E('span');
+          //   var last = null;
+
+          //   X.dynamicFn(this, function(e) {
+          //     e = X.E('span').add(e);
+          //     if ( last ) dyn.removeChild(last); //last.remove();
+          //     dyn.add(last = e);
+          //   });
+          // })());
         } else if ( foam.core.Slot.isInstance(c) ) {
           var v = this.valueE_(c);
           if ( Array.isArray(v) ) {
@@ -1283,8 +1312,10 @@ foam.CLASS({
     },
 
     function addEventListener_(topic, listener) {
-      if ( ! topic.startsWith('on') ) topic = 'on' + topic;
-      this.sub(topic, listener);
+      var foamtopic = topic.startsWith('on') ?
+          'on' + topic :
+          topic;
+      this.sub(foamtopic, listener);
       this.el() && this.el().addEventListener(topic, listener);
     },
 

@@ -46,8 +46,50 @@ foam.CLASS({
   ]
 });
 
+var timer = foam.util.Timer.create();
+timer.start();
 
-foam.u2.Element.create()
-  .add('hello', 'world')
-  .add(Something.create().value$)
-  .write();
+var E = (function() {
+  var e = foam.u2.Element.create();
+  return function(name) {
+    return e.E.apply(e, arguments);
+  };
+})();
+
+E('b').add(
+  'bold',
+  E('br'),
+  '<span style="color:red">HTML Injection Attempt</span>',
+  E('br'),
+  'foo'
+  ).nbsp().entity('amp').add('bar').write();
+
+E('b').add(
+  'color: ',
+  E('font').attrs({color: 'red'}).add('red', E('br'))).write();
+
+var e = E('font').add('text', E('br'));
+console.log('id: ', e.id);
+e.write();
+e.attrs({color: 'orange'});
+e.style({
+  fontWeight: 'bold',
+  fontSize:  '24pt'
+});
+e.on('click', function() { console.log('clicked'); });
+
+var e13 = E('div').add(
+  'dynamic function PLAN B * ',
+  foam.core.ExpressionSlot.create({
+    args: [ timer.second$ ],
+    fn: function(s) {
+      return s % 2 ?
+        E('span').add('PING', ' ', 'PING') :
+        E('span').add('PONG').style({color: 'orange'});
+    }
+  }),
+  ' *    dynamic value: ',
+  timer.i$,
+  '  ');
+
+e13.write();
