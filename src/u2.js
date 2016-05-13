@@ -19,7 +19,7 @@
 TODO:
  - Fix handling of Slots that return arrays.
  - Add support for FOAM1 style dynamic functions?
- - Property handle insertBefore_ of an element that's already been inserted?
+ - Properly handle insertBefore_ of an element that's already been inserted?
  - Fix ExpressionSlot firing too many property change events
 */
 
