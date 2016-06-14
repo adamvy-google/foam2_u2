@@ -27,7 +27,7 @@ foam.CLASS({
   package: 'foam.u2',
   name: 'EID',
   extends: 'Property',
-  help: 'Describes a property used to store a DOM element id.',
+  documentation: 'Describes a property used to store a DOM element id.',
 
   constants: {
     __ID__: [0],
@@ -63,7 +63,11 @@ foam.CLASS({
     {
       name: 'name',
       // parser: seq(alphaChar, repeat0(wordChar)),
-      regex: /^[a-z#]\w*$/i
+      assertValue: function(old, nu) {
+        if ( ! nu.match(/^[a-z#]\w*$/i) ) {
+          throw new Error('Invalid Entity name: ' + nu);
+        }
+      }
     }
   ],
 
@@ -329,7 +333,7 @@ foam.CLASS({
         }
         var out = this.createOutputStream();
         out(newE);
-        var n = this.X.document.createElement('div');
+        var n = this.__context__.document.createElement('div');
         n.innerHTML = out.toString();
         e.replaceChild(n.firstChild, oldE.el());
         newE.load && newE.load();
@@ -465,13 +469,13 @@ foam.CLASS({
     },
     {
       name: 'attributeMap',
-      documentation: 'Same information as attributes, but in map form for faster lookup',
+      //documentation: 'Same information as attributes, but in map form for faster lookup',
       transient: true,
       factory: function() { return {}; }
     },
     {
       name: 'attributes',
-      documentation: 'Array of {name: ..., value: ...} attributes.',
+      //documentation: 'Array of {name: ..., value: ...} attributes.',
       factory: function() { return []; },
       postSet: function(_, attrs) {
         this.attributeMap = {};
@@ -481,34 +485,34 @@ foam.CLASS({
     },
     {
       name: 'classes',
-      documentation: 'CSS classes assigned to this Element. Stored as a map of true values.',
+      //documentation: 'CSS classes assigned to this Element. Stored as a map of true values.',
       factory: function() { return {}; }
     },
     {
       name: 'css',
-      documentation: 'Styles added to this Element.',
+      //documentation: 'Styles added to this Element.',
       factory: function() { return {}; }
     },
     {
       name: 'childNodes',
-      documentation: 'Children of this Element.',
+      //documentation: 'Children of this Element.',
       factory: function() { return []; }
     },
     {
       name: 'elListeners',
-      documentation: 'DOM listeners of this Element.',
+      //documentation: 'DOM listeners of this Element.',
       factory: function() { return []; }
     },
     {
       name: 'children',
-      documentation: 'Virtual property of non-String childNodes.',
+      //documentation: 'Virtual property of non-String childNodes.',
       transient: true,
       getter: function() {
         return this.childNodes.filter(function(c) { return typeof c !== 'string'; });
       }
     },
     {
-      type: 'Boolean',
+      class: 'Boolean',
       name: 'focused'
     },
     {
@@ -546,10 +550,10 @@ foam.CLASS({
 
     function E(opt_nodeName /* | DIV */) {
       /* Create a new Element */
-      var Y = this.Y;
+      var Y = this.__subContext__;
 
       // ???: Is this needed / a good idea?
-      if ( this.data && ! Y.data ) Y = Y.sub({ data: this.data });
+      if ( this.data && ! Y.data ) Y = Y.createSubContext({ data: this.data });
 
       // Some names have sub-Models registered for them.
       // Example 'input'
@@ -580,7 +584,7 @@ foam.CLASS({
         Without an extra, results in eg. 'foam-u2-Input-'.
         With an extra of "foo", results in 'foam-u2-Input-foo'.
       */
-      var base = this.CSS_CLASS || cssClassize(this.model_.id);
+      var base = this.CSS_CLASS || foam.String.cssClassize(this.model_.id);
       if ( ! opt_extra ) opt_extra = '';
       return base.split(/ +/).map(function(c) { return c + '-' + opt_extra; }).join(' ');
     },
@@ -617,13 +621,13 @@ foam.CLASS({
     // Dynamic Listeners
     //
     function dynamic() {
-      var ret = this.X.dynamic.apply(this.X, arguments);
+      var ret = this.__context__.dynamic.apply(this.__context__, arguments);
       this.on('unload', ret.destroy.bind(ret));
       return ret;
     },
 
     function dynamicFn() {
-      var ret = this.X.dynamicFn.apply(this.X, arguments);
+      var ret = this.__context__.dynamicFn.apply(this.__context__, arguments);
       this.on('unload', ret.destroy.bind(ret));
       return ret;
     },
@@ -702,7 +706,7 @@ foam.CLASS({
       if ( opt_shown ) {
         this.removeCls('foam-u2-Element-hidden');
       } else {
-        this.cls('foam-u2-Element-hidden');
+        this.cssClass('foam-u2-Element-hidden');
       }
       return this;
     },
@@ -989,7 +993,7 @@ foam.CLASS({
     function add(/* vargs */) {
       /* Add Children to this Element. */
       var es = [];
-      var Y = this.Y;
+      var Y = this.__subContext__;
 
       for ( var i = 0 ; i < arguments.length ; i++ ) {
         var c = arguments[i];
@@ -1129,7 +1133,7 @@ foam.CLASS({
 
     function write(opt_X /* | GLOBAL */) {
       /* Write Element to document. For testing purposes. */
-      opt_X = opt_X || foam.X;
+      opt_X = opt_X || foam.__context__;
       opt_X.document.body.insertAdjacentHTML('beforeend', this.outerHTML);
       this.load();
       return this;
@@ -1200,7 +1204,7 @@ foam.CLASS({
 
       if ( ! Array.isArray(children) ) children = [ children ];
 
-      var Y = this.Y;
+      var Y = this.__subContext__;
       children = children.map(function(e) { return e.toE ? e.toE(Y) : e; });
 
       var index = before ? i : (i + 1);
@@ -1393,12 +1397,15 @@ foam.CLASS({
     function p(a) { a[0] = this; return this; },
     function s(opt_nodeName) { return this.start(opt_nodeName); },
     function t(as) { return this.attrs(as); },
-    function x(m) { for ( var k in m ) this.X.set(k, m[k]); return this; },
+    function x(m) {
+      for ( var k in m ) this.__context__.set(k, m[k]);
+      return this;
+    },
     function y() { return this.style.apply(this, arguments); },
   ]
 });
 
-foam.X = foam.subContext({
+foam.__context__ = foam.__context__.createSubContext({
   E: function(name) {
     return foam.u2.Element.create({
       nodeName: name.toUpperCase()
